@@ -4,35 +4,34 @@ services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.9.2
     ports:
-      - '9200'
-      - '9300'
+      - '9200:9200'
+      - '9300:9200'
     configs:
       - source: elastic_config
         target: /usr/share/elasticsearch/config/elasticsearch.yml
     environment:
       ES_JAVA_OPTS: '-Xmx256m -Xms256m'
       ELASTIC_PASSWORD: changeme
-      # Use single node discovery in order to disable production mode and avoid bootstrap checks
-      # see https://www.elastic.co/guide/en/elasticsearch/reference/current/bootstrap-checks.html
-      # discovery.type: single-node
+      # see discussion https://github.com/deviantony/docker-elk/issues/410
       # set a predictable node name
       node.name: elk_elasticsearch.{{.Task.Slot}}
       # disable single-node discovery
       discovery.type: ''
       # use internal Docker round-robin DNS for unicast discovery
       discovery.seed_hosts: tasks.elasticsearch
-      # define initial masters, assuming a cluster size of at least 3
+      # define initial masters, assuming a cluster size of at least 3, this is going to match with node.name
       cluster.initial_master_nodes: elk_elasticsearch.1,elk_elasticsearch.2,elk_elasticsearch.3
+      # see discussion https://github.com/deviantony/docker-elk/issues/455
       network.publish_host: _eth0_
     networks:
       - elk
     deploy:
       mode: replicated
       replicas: 3
-      # placement:
-      #   max_replicas_per_node: 1
-      # restart_policy:
-      #   condition: any
+      placement:
+        max_replicas_per_node: 1
+      restart_policy:
+        condition: any
 
   logstash:
     image: docker.elastic.co/logstash/logstash:7.9.2
