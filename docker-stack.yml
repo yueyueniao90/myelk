@@ -7,8 +7,8 @@ services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.9.2
     ports:
-      - '9200:9200'
-      - '9300:9200'
+      - '6013:9200'
+      - '6014:9200'
     configs:
       - source: elastic_config
         target: /usr/share/elasticsearch/config/elasticsearch.yml
@@ -17,7 +17,8 @@ services:
     environment:
       ES_JAVA_OPTS: '-Xmx256m -Xms256m'
       ELASTIC_PASSWORD: changeme
-      bootstrap.memory_lock: 'true'
+      # if possible, please make memory_lock enabled. however, it seems to be not really possible in m
+      # bootstrap.memory_lock: 'true'
       # see discussion https://github.com/deviantony/docker-elk/issues/410
       # set a predictable node name, elk is the stack name, elasticsearch is current service name, {{.Task.Slot}} to get current slot number for replica
       node.name: elk_elasticsearch.{{.Task.Slot}}
@@ -42,8 +43,8 @@ services:
   logstash:
     image: docker.elastic.co/logstash/logstash:7.9.2
     ports:
-      - '5000:5000'
-      - '9600:9600'
+      - '6015:5000'
+      - '6016:9600'
     configs:
       - source: logstash_config
         target: /usr/share/logstash/config/logstash.yml
@@ -62,7 +63,7 @@ services:
   kibana:
     image: docker.elastic.co/kibana/kibana:7.9.2
     ports:
-      - '5601:5601'
+      - '6017:5601'
     configs:
       - source: kibana_config
         target: /usr/share/kibana/config/kibana.yml
