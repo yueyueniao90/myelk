@@ -17,7 +17,7 @@ services:
     environment:
       ES_JAVA_OPTS: '-Xmx256m -Xms256m'
       ELASTIC_PASSWORD: changeme
-      bootstrap.memory_lock: true
+      bootstrap.memory_lock: 'true'
       # see discussion https://github.com/deviantony/docker-elk/issues/410
       # set a predictable node name, elk is the stack name, elasticsearch is current service name, {{.Task.Slot}} to get current slot number for replica
       node.name: elk_elasticsearch.{{.Task.Slot}}
