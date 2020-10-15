@@ -1,29 +1,36 @@
-version: '3.8'
+version: "3.8"
 
 # when deploy this file, it has to deploy the stack name as elk, otherwise, elasticsearch cluster cannot form
-# docker stack deploy -c docker-stack.yml elk
+# docker stack deploy -c elk-docker-stack.yml elk
 
 services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.9.2
     ports:
-      - '6013:9200'
-      - '6014:9300'
-    configs:
-      - source: elastic_config
-        target: /usr/share/elasticsearch/config/elasticsearch.yml
+      - "6013:9200"
+      - "6014:9300"
+    # currently, call configs already copied from config file and input into enviroment variable
+    # configs:
+    #   - source: elastic_config
+    #     target: /usr/share/elasticsearch/config/elasticsearch.yml
     volumes:
       - elasticsearch:/usr/share/elasticsearch/data
     environment:
-      ES_JAVA_OPTS: '-Xmx256m -Xms256m'
+      ES_JAVA_OPTS: "-Xmx1g -Xms1g"
       ELASTIC_PASSWORD: changeme
+      xpack.license.self_generated.type: basic
+      xpack.security.transport.ssl.enabled: "false"
+      xpack.security.enabled: "false"
+      xpack.monitoring.collection.enabled: "true"
+      cluster.name: "docker-cluster"
+      network.host: 0.0.0.0
       # if possible, please make memory_lock enabled. however, it seems to be not really possible in m
       # bootstrap.memory_lock: 'true'
       # see discussion https://github.com/deviantony/docker-elk/issues/410
       # set a predictable node name, elk is the stack name, elasticsearch is current service name, {{.Task.Slot}} to get current slot number for replica
       node.name: elk_elasticsearch.{{.Task.Slot}}
       # disable single-node discovery
-      discovery.type: ''
+      discovery.type: ""
       # use internal Docker round-robin DNS for unicast discovery, elasticsearch is current service name, tasks.elasticsearch will resolve all hosts ip that running elasticsearch service in docker swarm
       discovery.seed_hosts: tasks.elasticsearch
       # define initial masters, assuming a cluster size of at least 3, this is going to match with node.name
@@ -33,27 +40,37 @@ services:
     networks:
       - elk
     deploy:
-      mode: replicated
-      replicas: 3
-      placement:
-        max_replicas_per_node: 1
+      mode: global
+      # the following setting is not working since one of current docker is 18.09.0, need to upgrade to at least 19.03 to support this feature
+      # replicas: 3
+      # placement:
+      #   max_replicas_per_node: 1
       restart_policy:
         condition: any
 
   logstash:
     image: docker.elastic.co/logstash/logstash:7.9.2
     ports:
-      - '6015:5000'
-      - '6016:9600'
+      - "6015:5000"
+      - "6016:9600"
     configs:
-      - source: logstash_config
-        target: /usr/share/logstash/config/logstash.yml
+      #  this is configed in environment variables
+      # - source: logstash_config
+      #   target: /usr/share/logstash/config/logstash.yml
       - source: logstash_pipeline
         target: /usr/share/logstash/pipeline/logstash.conf
     volumes:
       - kibana:/usr/share/kibana/data
     environment:
-      LS_JAVA_OPTS: '-Xmx256m -Xms256m'
+      LS_JAVA_OPTS: "-Xmx512m -Xms512m"
+      http.host: "0.0.0.0"
+      xpack.monitoring.elasticsearch.hosts: "http://elasticsearch:9200"
+
+      ## X-Pack security credentials
+      #
+      xpack.monitoring.enabled: "true"
+      xpack.monitoring.elasticsearch.username: elastic
+      xpack.monitoring.elasticsearch.password: changeme
     networks:
       - elk
     deploy:
@@ -63,12 +80,22 @@ services:
   kibana:
     image: docker.elastic.co/kibana/kibana:7.9.2
     ports:
-      - '6017:5601'
-    configs:
-      - source: kibana_config
-        target: /usr/share/kibana/config/kibana.yml
+      - "6017:5601"
+    # currently, call configs already copied from config file and input into enviroment variable, enable it if want to add more config
+    # configs:
+    #   - source: kibana_config
+    #     target: /usr/share/kibana/config/kibana.yml
     networks:
       - elk
+    environment:
+      server.name: kibana
+      server.host: 0.0.0.0
+      elasticsearch.hosts: "http://elasticsearch:9200"
+      monitoring.ui.container.elasticsearch.enabled: "true"
+
+      ## X-Pack security credentials
+      elasticsearch.username: elastic
+      elasticsearch.password: changeme
     deploy:
       mode: replicated
       replicas: 1
